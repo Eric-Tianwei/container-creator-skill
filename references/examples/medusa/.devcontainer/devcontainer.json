@@ -33,7 +33,7 @@
     "6379": { "label": "Redis" }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "updateContentCommand": "[ -f package.json ] && (corepack enable && pnpm install --frozen-lockfile) || true",
+  "updateContentCommand": "[ -f package.json ] && (sudo corepack enable && pnpm install --frozen-lockfile) || true",
   "customizations": {
     "vscode": {
       "extensions": [

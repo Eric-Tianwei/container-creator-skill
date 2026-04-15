@@ -8,8 +8,8 @@ echo "→ npm global prefix → volume..."
 mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
 
 echo "→ 启用 pnpm..."
-corepack enable
-corepack prepare pnpm@latest --activate
+sudo corepack enable
+sudo corepack prepare pnpm@latest --activate
 
 echo "→ 安装 Bun（volume 命中则跳过）..."
 if [ ! -x "$HOME/.bun/bin/bun" ]; then
