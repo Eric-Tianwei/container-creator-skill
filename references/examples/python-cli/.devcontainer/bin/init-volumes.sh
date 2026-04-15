@@ -14,6 +14,9 @@ _v() {
   echo "  + [${scope}] ${name}"
 }
 
+# 确保宿主机 ~/.claude.json 存在（否则 bind mount 会被当成目录创建）
+[ -e "$HOME/.claude.json" ] || touch "$HOME/.claude.json"
+
 echo "→ 预创建 volume..."
 _v dcc.shared.linuxbrew     shared
 _v dcc.shared.user-local    shared

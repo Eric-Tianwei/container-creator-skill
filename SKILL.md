@@ -50,7 +50,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 | # | 项目 | 实现 |
 |---|---|---|
-| 1 | Claude Code 已登录 | `~/.claude` **bind mount** 宿主机目录（不是 volume） |
+| 1 | Claude Code 已登录 | **同时 bind mount 两处**：`~/.claude`（目录，含认证/skills/settings）+ `~/.claude.json`（文件，主配置）。漏挂 `.claude.json` 会导致进容器报 "Claude configuration file not found"。`initializeCommand` 里先 `[ -e ~/.claude.json ] \|\| touch ~/.claude.json` 保证宿主机存在 |
 | 2 | `claude` 全自动模式 | `~/.zshrc` 加 `alias claude='claude --dangerously-skip-permissions'` |
 | 3 | agent-browser 预装 | `npx skills add vercel-labs/agent-browser@agent-browser -g -y \|\| true` |
 | 4 | skill-creator 预装 | `npx skills add anthropics/skills@skill-creator -g -y \|\| true` |

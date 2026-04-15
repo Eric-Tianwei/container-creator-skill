@@ -17,12 +17,18 @@ Claude Code 把认证、会话历史、`settings.json`、已装 skills、MEMORY 
 ```jsonc
 {
   "remoteUser": "vscode",
+  "initializeCommand": "[ -e $HOME/.claude.json ] || touch $HOME/.claude.json",
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
 ```
+
+**重要：两处都要挂** — `~/.claude/` 是目录（认证凭证、skills、settings），`~/.claude.json` 是文件（主配置、MCP 设置）。只挂前者会导致容器内 Claude Code 报 "Claude configuration file not found at /home/vscode/.claude.json"。
+
+挂单个文件的前提是宿主机该路径已存在，所以 `initializeCommand` 里先 `touch` 一下保证。
 
 `consistency=cached` 告诉 Docker Desktop（macOS）容器侧可以延迟同步宿主机的写入。OrbStack 的 VirtioFS 会忽略这个标志（不需要），留着兼容性无害。
 
