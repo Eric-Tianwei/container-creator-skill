@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "→ 修复 volume 目录权限..."
-sudo chown -R vscode:vscode node_modules .next /commandhistory ~/.local ~/.cargo ~/go ~/.npm-global 2>/dev/null || true
+sudo chown -R vscode:vscode node_modules .next /commandhistory ~/.local ~/.cargo ~/go ~/.npm-global ~/.bun 2>/dev/null || true
 
 echo "→ 配置 npm global prefix → volume..."
 mkdir -p ~/.npm-global

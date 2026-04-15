@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "→ 权限修复..."
-sudo chown -R vscode:vscode node_modules /commandhistory ~/.local ~/.cargo ~/go ~/.npm-global 2>/dev/null || true
+sudo chown -R vscode:vscode node_modules /commandhistory ~/.local ~/.cargo ~/go ~/.npm-global ~/.bun 2>/dev/null || true
 
 echo "→ npm global prefix → volume..."
 mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
