@@ -33,6 +33,14 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 `mcr.microsoft.com/devcontainers/*` 官方镜像。Node/Python/Rust/Go 都有现成的。详见 `references/base-images.md`。
 
+**镜像 tag 必须照搬 `references/base-images.md` 里列出的**，**不要自己按"最新主版本"脑补 tag**（例如 Node 24 LTS 存在 ≠ MCR 有 `1-24-bookworm`，MCR 的发布通常滞后运行时数月）。脑补的 tag 90% 不存在，容器一拉就失败。不确定时用 rolling 兜底：
+
+- Node → `1-bookworm`（跟随 MCR 默认）或 `1-22-bookworm`（当前 LTS）
+- Python → `1-bookworm` 或 `1-3.13-bookworm`
+- Rust / Go → `1-bookworm`
+
+只有用户明确指定某个运行时版本时才写精确 tag；写之前 grep `references/base-images.md` 确认存在。
+
 ### 4. 按硬清单落地（下一节）
 
 ### 5. 交付两行话
@@ -156,6 +164,7 @@ touch /commandhistory/.zsh_history
 - 用 apt 装开发用 CLI（fd/ripgrep/jq 之类） — 用 Linuxbrew 代替，重建不丢
 - 裸 volume 命名（`node_modules` / `user-local`）— 必须用 `dcc.<scope>.<id>` 格式，否则多项目后 `docker volume ls` 失控
 - cache 类 volume 不标 `scope=cache` — 就没法做批量 prune，用户不敢清也分不清
+- **脑补 `1-<最新主版本>-bookworm` tag**（例如 `1-24-bookworm`）— MCR 发布滞后运行时数月，`Node 24 进入 LTS` 不等于 `MCR 有对应 tag`。以 `references/base-images.md` 明文列表为准；不在列表的用 `1-bookworm` 兜底
 
 ---
 

@@ -1,5 +1,7 @@
 # 基础镜像选择参考
 
+> **⚠ 选 tag 的铁律**：只用下面表格里明文列出的 tag，或者用 rolling 兜底（`1-bookworm` / `1-lts-bookworm`）。**不要自己按"运行时最新主版本号"脑补 tag**——MCR 的镜像发布通常滞后上游运行时几个月到一年，脑补的 tag 90% 不存在，容器一拉就失败。写之前 grep 本文件确认存在。
+
 默认用微软官方 devcontainer 镜像（`mcr.microsoft.com/devcontainers/*`）。这些镜像：
 
 - 非 root 用户 `vscode` 预置好
@@ -18,24 +20,27 @@
 
 **推荐统一用 bookworm**：新、稳、包全。
 
-## 常用镜像对照
+## 常用镜像对照（白名单 — 仅用表内 tag，表外的一律用 rolling）
 
-| 场景 | 镜像 | 备注 |
+| 场景 | 已验证 tag | 备注 |
 |---|---|---|
-| Node 22 LTS | `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm` | 默认选这个 |
-| Node 20 LTS | `mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm` | 兼容老项目 |
-| TypeScript | 同 Node | TS 用 npm 装就行，不需要换基础镜像 |
-| Next.js / React / Vue | 同 Node | |
-| Python 3.13 | `mcr.microsoft.com/devcontainers/python:1-3.13-bookworm` | |
+| Node（默认） | `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm` | 当前 LTS，默认选这个 |
+| Node 20 | `mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm` | 兼容老项目 |
+| Node（不确定版本） | `mcr.microsoft.com/devcontainers/javascript-node:1-bookworm` | rolling，跟随 MCR 默认 |
+| TypeScript / Next.js / React / Vue | 同 Node | TS 用 npm 装，不换 base |
+| Python 3.13 | `mcr.microsoft.com/devcontainers/python:1-3.13-bookworm` | 默认 |
 | Python 3.12 | `mcr.microsoft.com/devcontainers/python:1-3.12-bookworm` | |
+| Python（不确定版本） | `mcr.microsoft.com/devcontainers/python:1-bookworm` | rolling |
 | FastAPI / Django / Flask | 同 Python | |
-| Rust | `mcr.microsoft.com/devcontainers/rust:1-bookworm` | 含 cargo、rustup |
-| Go | `mcr.microsoft.com/devcontainers/go:1-bookworm` | |
-| Java / Kotlin | `mcr.microsoft.com/devcontainers/java:1-21-bookworm` | 数字是 JDK 版本 |
-| C++ | `mcr.microsoft.com/devcontainers/cpp:1-bookworm` | |
+| Rust | `mcr.microsoft.com/devcontainers/rust:1-bookworm` | rolling，含 cargo/rustup |
+| Go | `mcr.microsoft.com/devcontainers/go:1-bookworm` | rolling |
+| Java / Kotlin | `mcr.microsoft.com/devcontainers/java:1-21-bookworm` | JDK 21；其它 JDK 先查 MCR |
+| C++ | `mcr.microsoft.com/devcontainers/cpp:1-bookworm` | rolling |
 | Ruby | `mcr.microsoft.com/devcontainers/ruby:1-3-bookworm` | |
-| 多语言 / 不确定 | `mcr.microsoft.com/devcontainers/universal:2-linux` | 约 10GB，什么都有 |
+| 多语言 / 不确定 | `mcr.microsoft.com/devcontainers/universal:2-linux` | ~10GB，啥都有 |
 | 极简底座 | `mcr.microsoft.com/devcontainers/base:1-bookworm` | Debian + common-utils，语言自己加 feature |
+
+**规则：** 用户指定的运行时版本在上面列表里 → 用精确 tag；不在列表或不确定 → 用对应的 `1-bookworm` rolling tag。**绝不要自己凑一个看起来合理的 tag**（如 `1-24-bookworm` / `1-3.14-bookworm`），不存在就是不存在。
 
 ## 单语言 vs universal 选哪个
 
