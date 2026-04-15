@@ -78,6 +78,18 @@ if [ -f medusa-config.js ] || [ -f medusa-config.ts ]; then
   npx medusa db:migrate || echo "⚠ db:migrate 未执行（项目或未初始化）"
 fi
 
+echo "→ git 初始化（仅当仓库未 init）..."
+if [ ! -d .git ]; then
+  git init -q -b main
+  [ -f .devcontainer/.gitignore.template ] && cp .devcontainer/.gitignore.template .gitignore
+  git add -A
+  if [ -n "$(git config user.email 2>/dev/null)" ]; then
+    git commit -q -m "chore: bootstrap devcontainer" && echo "  ✓ 初始 commit 完成"
+  else
+    echo "  ⚠ 未配 git user.email，跳过 commit"
+  fi
+fi
+
 echo ""
 echo "✓ 容器就绪"
 echo "  - Medusa backend: cd apps/backend && npx medusa develop   (→ :9000)"

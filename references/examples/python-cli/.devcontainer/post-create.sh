@@ -70,6 +70,18 @@ if [ -f pyproject.toml ]; then
   uv sync || echo "⚠ uv sync 跳过（首次或 lockfile 不存在）"
 fi
 
+echo "→ git 初始化（仅当仓库未 init）..."
+if [ ! -d .git ]; then
+  git init -q -b main
+  [ -f .devcontainer/.gitignore.template ] && cp .devcontainer/.gitignore.template .gitignore
+  git add -A
+  if [ -n "$(git config user.email 2>/dev/null)" ]; then
+    git commit -q -m "chore: bootstrap devcontainer" && echo "  ✓ 初始 commit 完成"
+  else
+    echo "  ⚠ 未配 git user.email，跳过 commit"
+  fi
+fi
+
 echo ""
 echo "✓ 容器就绪"
 echo "  - Python $(python3 --version 2>&1), uv $(uv --version 2>/dev/null || echo '未装')"

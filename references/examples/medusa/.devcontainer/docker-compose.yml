@@ -6,6 +6,7 @@ services:
       - ..:/workspaces/${COMPOSE_PROJECT_NAME:-medusa}:cached
       - ${HOME}/.claude:/home/vscode/.claude
       - ${HOME}/.claude.json:/home/vscode/.claude.json
+      - ${HOME}/.gitconfig:/home/vscode/.gitconfig
       - dcc.cache.medusa.node_modules:/workspaces/${COMPOSE_PROJECT_NAME:-medusa}/node_modules
       - dcc.proj.medusa.cmdhistory:/commandhistory
       - dcc.shared.user-local:/home/vscode/.local

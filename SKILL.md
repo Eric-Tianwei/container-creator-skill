@@ -64,6 +64,8 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 | 12 | 项目专用 skill 分层挂载（可选） | `${localWorkspaceFolder}/.claude/skills` bind mount 进容器并软链到 `~/.claude/skills/` |
 | 13 | 依赖同步用 `updateContentCommand` | `pnpm install --frozen-lockfile` 之类放这里，lockfile 变更才跑 |
 | 14 | Volume 命名走 `dcc.<scope>.<id>` | `dcc.shared.*`（跨项目）/ `dcc.proj.<name>.*`（项目私有要保留）/ `dcc.cache.<name>.*`（可 prune）。`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/created-at`），便于治理 |
+| 15 | 宿主机 git 身份复用 | `~/.gitconfig` bind mount（同 `.claude.json`，`initializeCommand` 里 touch 保证存在） |
+| 16 | 自动 git init + gitignore + 初始 commit | 仅当 `.git` 不存在时执行：`git init -b main` → `cp .devcontainer/.gitignore.template .gitignore` → `git add -A` → 有 user.email 则 `git commit -m "chore: bootstrap devcontainer"`，否则跳过 commit。`.gitignore.template` 按栈放（Node / Python / Rust / Medusa 各一份） |
 
 ### 最小 devcontainer.json 骨架
 

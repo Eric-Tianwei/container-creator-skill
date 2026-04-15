@@ -20,8 +20,9 @@ _v() {
   echo "  + 新建 volume [${scope}]: ${name}"
 }
 
-# 确保宿主机 ~/.claude.json 存在（否则 bind mount 会被当成目录创建）
+# 确保宿主机文件存在（bind mount 单文件要求 source 存在，否则会被当成目录创建）
 [ -e "$HOME/.claude.json" ] || touch "$HOME/.claude.json"
+[ -e "$HOME/.gitconfig" ] || touch "$HOME/.gitconfig"
 
 echo "→ 预创建 devcontainer volume（已存在则跳过）..."
 

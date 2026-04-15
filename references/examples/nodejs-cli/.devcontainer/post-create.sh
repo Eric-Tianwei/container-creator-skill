@@ -58,6 +58,18 @@ if [ -f .devcontainer/tools.list ]; then
   bash .devcontainer/bin/install-tools.sh || echo "⚠ install-tools 部分失败"
 fi
 
+echo "→ git 初始化（仅当仓库未 init）..."
+if [ ! -d .git ]; then
+  git init -q -b main
+  [ -f .devcontainer/.gitignore.template ] && cp .devcontainer/.gitignore.template .gitignore
+  git add -A
+  if [ -n "$(git config user.email 2>/dev/null)" ]; then
+    git commit -q -m "chore: bootstrap devcontainer" && echo "  ✓ 初始 commit 完成"
+  else
+    echo "  ⚠ 未配 git user.email（宿主机 ~/.gitconfig 无 user 段），跳过 commit。配好后 git commit 即可"
+  fi
+fi
+
 echo ""
 echo "✓ 容器就绪"
 echo "  - Node $(node --version), pnpm $(pnpm --version 2>/dev/null || echo '未装'), bun $($HOME/.bun/bin/bun --version 2>/dev/null || echo '未装')"
