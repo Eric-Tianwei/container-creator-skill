@@ -43,6 +43,8 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 ### 4. 按硬清单落地（下一节）
 
+**铁律：选定栈后必须先读对应 `references/examples/<stack>/`**（Node → `nodejs-cli` + `nextjs-web` + `medusa`，Python → `python-cli`，等等）。主清单只列跨栈通用项，**栈专属默认（如 Node 必装 Bun、Medusa 必带 Postgres+Redis）只在 examples 里**。只读主清单不读 examples = 必漏。
+
 ### 5. 交付两行话
 
 - 一行：打开方式（"VS Code 接受 Reopen in Container"）
@@ -73,6 +75,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 | 13 | 依赖同步用 `updateContentCommand` | `pnpm install --frozen-lockfile` 之类放这里，lockfile 变更才跑 |
 | 14 | Volume 命名走 `dcc.<scope>.<id>` | `dcc.shared.*`（跨项目）/ `dcc.proj.<name>.*`（项目私有要保留）/ `dcc.cache.<name>.*`（可 prune）。`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/created-at`），便于治理 |
 | 15 | 宿主机 git 身份复用 | `~/.gitconfig` bind mount（同 `.claude.json`，`initializeCommand` 里 touch 保证存在） |
+| 17 | Node 栈必装 Bun | Node 类项目（含 Next.js / Medusa / 通用 Node CLI）默认装 Bun：独立 runtime + 包管理器，二进制走 `dcc.shared.bun` volume 持久化。post-create 里 `curl -fsSL https://bun.sh/install \| bash`，不要漏 |
 | 16 | 自动 git init + gitignore + 初始 commit | 仅当 `.git` 不存在时执行：`git init -b main` → `cp .devcontainer/.gitignore.template .gitignore` → `git add -A` → 有 user.email 则 `git commit -m "chore: bootstrap devcontainer"`，否则跳过 commit。`.gitignore.template` 按栈放（Node / Python / Rust / Medusa 各一份） |
 
 ### 最小 devcontainer.json 骨架
@@ -125,9 +128,12 @@ EOF
 touch /commandhistory/.zsh_history
 
 # 项目依赖（按栈替换）
-# Node:   corepack enable && pnpm install
+# Node:   sudo corepack enable && pnpm install     # corepack 写 /usr/local/bin，必须 sudo
 # Python: uv sync
 # Rust:   cargo fetch
+
+# 写 /usr/local/{bin,sbin} 的命令一律 sudo（vscode 已配免密 sudo）。
+# 反之，凡 NPM_CONFIG_PREFIX 指过 ~/.npm-global 的 npm i -g 不要 sudo（否则装到 root 目录）。
 ```
 
 > `--dangerously-skip-permissions` 让容器里的 Claude Code 跳过所有权限确认，全自动执行工具。容器本身是隔离沙箱，这是合理的。绕过 alias 用 `\claude` 或 `unalias claude`。
@@ -164,6 +170,8 @@ touch /commandhistory/.zsh_history
 - 用 apt 装开发用 CLI（fd/ripgrep/jq 之类） — 用 Linuxbrew 代替，重建不丢
 - 裸 volume 命名（`node_modules` / `user-local`）— 必须用 `dcc.<scope>.<id>` 格式，否则多项目后 `docker volume ls` 失控
 - cache 类 volume 不标 `scope=cache` — 就没法做批量 prune，用户不敢清也分不清
+- **在 `containerEnv` 里设 `PATH`**（尤其用 `${containerEnv:PATH}` 拼接）— `${containerEnv:PATH}` 只读镜像里**显式声明**的 `ENV PATH`，MCR 多数 devcontainer 镜像继承 debian 隐式 PATH 没显式声明，替换结果是空串。`containerEnv` 直接覆盖 PID 1 环境，devcontainer CLI 注入的 `while sleep 1` 保活循环找不到 `sleep`，**容器秒退 + 日志只有 `sleep: not found`**。所有 PATH 自定义一律走 `remoteEnv`（只影响交互 shell，不碰 PID 1）。需要给守护进程加 PATH 时改 `~/.profile` / Dockerfile `ENV PATH=...`，绝不写 `containerEnv.PATH`
+- **`corepack enable` / 任何写 `/usr/local/{bin,sbin}` 的命令不加 `sudo`** — vscode 用户对 `/usr/local/bin` 没写权限，会 `EACCES: symlink ... '/usr/local/bin/pnpm'`。一律 `sudo corepack enable`
 - **脑补 `1-<最新主版本>-bookworm` tag**（例如 `1-24-bookworm`）— MCR 发布滞后运行时数月，`Node 24 进入 LTS` 不等于 `MCR 有对应 tag`。以 `references/base-images.md` 明文列表为准；不在列表的用 `1-bookworm` 兜底
 
 ---
@@ -177,3 +185,6 @@ touch /commandhistory/.zsh_history
 - [ ] `remoteUser: vscode`
 - [ ] `forwardPorts` 只列项目真正用的端口
 - [ ] 没有多余的服务、没有多余的 Feature
+- [ ] **没在 `containerEnv` 里写 `PATH`**（PATH 自定义只能进 `remoteEnv` / `~/.profile`）
+- [ ] post-create 里 `corepack enable` 等写 `/usr/local/bin` 的命令都加了 `sudo`
+- [ ] 选定栈后已读对应 `references/examples/<stack>/`，栈专属默认（Node → Bun，Medusa → PG+Redis 等）一项不漏
