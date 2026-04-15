@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-ai-app",
+  "name": "nodejs-cli",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "remoteUser": "vscode",
   "features": {
@@ -12,28 +12,31 @@
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
+  "initializeCommand": "bash .devcontainer/bin/init-volumes.sh",
   "mounts": [
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localWorkspaceFolderBasename}-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-    "source=${localWorkspaceFolderBasename}-next-cache,target=${containerWorkspaceFolder}/.next,type=volume",
-    "source=${localWorkspaceFolderBasename}-cmdhistory,target=/commandhistory,type=volume"
+    "source=dcc.cache.${localWorkspaceFolderBasename}.node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=dcc.proj.${localWorkspaceFolderBasename}.cmdhistory,target=/commandhistory,type=volume",
+    "source=dcc.shared.user-local,target=/home/vscode/.local,type=volume",
+    "source=dcc.shared.cargo-bin,target=/home/vscode/.cargo/bin,type=volume",
+    "source=dcc.shared.go-bin,target=/home/vscode/go/bin,type=volume",
+    "source=dcc.shared.npm-global,target=/home/vscode/.npm-global,type=volume",
+    "source=dcc.shared.bun,target=/home/vscode/.bun,type=volume",
+    "source=dcc.shared.linuxbrew,target=/home/linuxbrew/.linuxbrew,type=volume"
   ],
   "containerEnv": {
     "EDITOR": "code --wait",
-    "PAGER": "less -R"
-  },
-  "forwardPorts": [3000],
-  "portsAttributes": {
-    "3000": { "label": "Next.js dev server", "onAutoForward": "openPreview" }
+    "PAGER": "less -R",
+    "TOOLS_LIST": "${containerWorkspaceFolder}/.devcontainer/tools.list"
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "updateContentCommand": "[ -f package.json ] && (corepack enable && pnpm install --frozen-lockfile) || true",
   "customizations": {
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss",
         "eamodio.gitlens",
         "EditorConfig.EditorConfig",
         "usernamehw.errorlens",

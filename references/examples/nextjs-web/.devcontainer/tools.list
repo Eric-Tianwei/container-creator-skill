@@ -1,0 +1,13 @@
+# 项目 CLI 工具清单
+# 格式：<backend>: <pkg1> <pkg2> ...
+# 每次 brew/cargo/npm/pipx/go install 会自动追加到这里（透明 wrapper 生效）
+# 也可以手动编辑 + commit
+#
+# 首次 / 重建容器时，install-tools.sh 会按清单批量安装（幂等，已装跳过）
+
+brew:
+cargo:
+npm:
+pipx:
+go:
+apt:

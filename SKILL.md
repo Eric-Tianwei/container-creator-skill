@@ -59,6 +59,11 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 | 7 | shell 历史持久化 | named volume 挂 `/commandhistory`，`HISTFILE` 指过去 |
 | 8 | 常用 Features | `common-utils`（zsh+OhMyZsh）、`git`、`github-cli` |
 | 9 | 默认 VS Code 插件 | `anthropic.claude-code` + 按语言栈加（见 `references/features.md`） |
+| 10 | 用户级 CLI volume（开发中新装的 CLI 持久化） | `~/.local` / `~/.cargo/bin` / `~/go/bin` / `~/.npm-global` / `/home/linuxbrew/.linuxbrew` 全挂 named volume |
+| 11 | 透明 wrapper + tools.list | `.devcontainer/bin/tools-wrapper.sh` 劫持 brew/cargo/npm/pipx/go install，自动追加到 `.devcontainer/tools.list`；`.devcontainer/bin/install-tools.sh` 在 postCreate 读清单幂等同步 |
+| 12 | 项目专用 skill 分层挂载（可选） | `${localWorkspaceFolder}/.claude/skills` bind mount 进容器并软链到 `~/.claude/skills/` |
+| 13 | 依赖同步用 `updateContentCommand` | `pnpm install --frozen-lockfile` 之类放这里，lockfile 变更才跑 |
+| 14 | Volume 命名走 `dcc.<scope>.<id>` | `dcc.shared.*`（跨项目）/ `dcc.proj.<name>.*`（项目私有要保留）/ `dcc.cache.<name>.*`（可 prune）。`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/created-at`），便于治理 |
 
 ### 最小 devcontainer.json 骨架
 
@@ -133,6 +138,7 @@ touch /commandhistory/.zsh_history
 - `references/performance.md` — volume / cache / mount 片段
 - `references/ai-tooling.md` — Claude Code / MCP / agent-browser 详解
 - `references/compose-recipes.md` — 数据库/缓存/向量库栈
+- `references/evolution.md` — 项目演进时的性能守门（tools.list、项目专用 skill、updateContentCommand、性能预算）
 - `references/examples/` — 完整可用示例
 
 ---
@@ -144,6 +150,10 @@ touch /commandhistory/.zsh_history
 - `COPY . .` 到镜像里 — 开发容器是 bind-mount workspace
 - 加用户没点名的服务 — 每多一个容器，启动时间你每天付
 - 把 `~/.claude` 挂 named volume 而不是 bind — 失去"共享宿主机认证和 skill"的核心价值
+- 在 devcontainer.json 里零散塞 `"npm i -g X && cargo install Y"` — 用 `.devcontainer/tools.list` 集中管理，透明 wrapper 自动维护
+- 用 apt 装开发用 CLI（fd/ripgrep/jq 之类） — 用 Linuxbrew 代替，重建不丢
+- 裸 volume 命名（`node_modules` / `user-local`）— 必须用 `dcc.<scope>.<id>` 格式，否则多项目后 `docker volume ls` 失控
+- cache 类 volume 不标 `scope=cache` — 就没法做批量 prune，用户不敢清也分不清
 
 ---
 

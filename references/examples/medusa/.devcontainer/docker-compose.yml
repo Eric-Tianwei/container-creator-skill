@@ -1,0 +1,69 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/${COMPOSE_PROJECT_NAME:-medusa}:cached
+      - ${HOME}/.claude:/home/vscode/.claude
+      - dcc.cache.medusa.node_modules:/workspaces/${COMPOSE_PROJECT_NAME:-medusa}/node_modules
+      - dcc.proj.medusa.cmdhistory:/commandhistory
+      - dcc.shared.user-local:/home/vscode/.local
+      - dcc.shared.cargo-bin:/home/vscode/.cargo/bin
+      - dcc.shared.go-bin:/home/vscode/go/bin
+      - dcc.shared.npm-global:/home/vscode/.npm-global
+      - dcc.shared.bun:/home/vscode/.bun
+      - dcc.shared.linuxbrew:/home/linuxbrew/.linuxbrew
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: medusa
+    volumes:
+      - dcc.proj.medusa.pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - dcc.cache.medusa.redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  dcc.cache.medusa.node_modules:
+    external: true
+  dcc.proj.medusa.cmdhistory:
+    external: true
+  dcc.proj.medusa.pgdata:
+    external: true
+  dcc.cache.medusa.redis:
+    external: true
+  dcc.shared.user-local:
+    external: true
+  dcc.shared.cargo-bin:
+    external: true
+  dcc.shared.go-bin:
+    external: true
+  dcc.shared.npm-global:
+    external: true
+  dcc.shared.bun:
+    external: true
+  dcc.shared.linuxbrew:
+    external: true
