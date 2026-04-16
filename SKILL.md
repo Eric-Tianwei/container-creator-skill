@@ -71,7 +71,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 | 14 | 项目专用 skill 分层挂载（可选） | `${localWorkspaceFolder}/.claude/skills` bind mount 进容器并软链到 `~/.claude/skills/` |
 | 15 | 依赖同步用 `updateContentCommand` | `pnpm install --frozen-lockfile` 之类放这里，lockfile 变更才跑 |
 | 16 | Volume 命名走 `dcc.<scope>.<id>` | `dcc.shared.node22`（跨项目，ABI key 跟 base image 绑定）/ `dcc.proj.<proj>.*`（项目私有）/ `dcc.cache.<proj>.*`（可 prune）。`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/created-at`） |
-| 17 | 宿主机 git 身份复用 | `~/.gitconfig` bind mount（同 `.claude.json`，`initializeCommand` 里 touch 保证存在） |
+| 17 | 宿主机 git 身份复用 | **只读**挂到 staging 路径：`source=${localEnv:HOME}/.gitconfig,target=/tmp/host-gitconfig,type=bind,readonly`；`initializeCommand` 里 touch 保证宿主文件存在；post-create 里 `cp /tmp/host-gitconfig ~/.gitconfig`（首次）。**不能**直接 bind 到 `~/.gitconfig`——单文件 bind mount 阻止原子 rename，VS Code 注入 credential-helper 和 `git config --global` 都会 `Device or resource busy` |
 
 ### 最小 devcontainer.json 骨架
 
@@ -91,7 +91,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
   "mounts": [
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gitconfig,target=/tmp/host-gitconfig,type=bind,readonly",
     "source=dcc.shared.node22,target=/opt/dcc,type=volume",
     "source=dcc.cache.${localWorkspaceFolderBasename}.deps,target=${containerWorkspaceFolder}/node_modules,type=volume",
     "source=dcc.proj.${localWorkspaceFolderBasename}.cmdhistory,target=/commandhistory,type=volume"
@@ -218,13 +218,14 @@ touch /commandhistory/.zsh_history
 - **在 `containerEnv` 里设 `PATH`**（尤其用 `${containerEnv:PATH}` 拼接）— `${containerEnv:PATH}` 只读镜像里**显式声明**的 `ENV PATH`，MCR 多数 devcontainer 镜像继承 debian 隐式 PATH 没显式声明，替换结果是空串。`containerEnv` 直接覆盖 PID 1 环境，devcontainer CLI 注入的 `while sleep 1` 保活循环找不到 `sleep`，**容器秒退 + 日志只有 `sleep: not found`**。所有 PATH 自定义一律走 `~/.profile` / `~/.zshrc`
 - **`corepack enable` / 任何写 `/usr/local/{bin,sbin}` 的命令不加 `sudo`** — vscode 用户对 `/usr/local/bin` 没写权限，会 `EACCES: symlink ... '/usr/local/bin/pnpm'`。一律 `sudo corepack enable`
 - **走 escape hatch 时脑补 `1-<最新主版本>-bookworm` tag**（例如 `1-24-bookworm`）— MCR 发布滞后运行时数月。走 escape hatch 必须从 `references/base-images.md` 白名单选；不在列表用 `1-bookworm` 兜底
+- **`~/.gitconfig` 直接单文件 bind mount 进容器** — Linux 单文件 bind mount 锁住 inode，任何"写 tmp 再 rename"都 `Device or resource busy`。VS Code 启动时自动注入 `git config --global credential.helper`、用户随手 `git config --global ...` 都会炸。必须只读挂到 `/tmp/host-gitconfig`，post-create 里 `cp` 成本地普通文件（`.claude.json` 没这问题是因为 Claude Code 用 fs.writeFile 原地覆盖，不走 rename）
 
 ---
 
 ## 交付自检（写完必过）
 
 - [ ] base image 是 `javascript-node:1-22-bookworm`（或用户明确要 escape hatch 才用白名单单语言镜像）
-- [ ] `~/.claude` + `~/.claude.json` + `~/.gitconfig` bind mount 全配（除非 Codespaces）
+- [ ] `~/.claude`（目录 bind）+ `~/.claude.json`（文件 bind）+ `.gitconfig`（**只读** bind 到 `/tmp/host-gitconfig`，post-create 里 cp）全配（除非 Codespaces）
 - [ ] `alias claude='claude --dangerously-skip-permissions'` 已写入 `~/.zshrc`
 - [ ] `postCreateCommand` 装了 Claude Code + agent-browser + skill-creator + uv
 - [ ] 单 shared volume `dcc.shared.node22` → `/opt/dcc` 挂上了，post-create 里写了 env 变量 + Linuxbrew 软链

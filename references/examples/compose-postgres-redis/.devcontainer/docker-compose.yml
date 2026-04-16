@@ -10,7 +10,7 @@ services:
       - ../..:/workspaces:cached
       - ${HOME}/.claude:/home/vscode/.claude
       - ${HOME}/.claude.json:/home/vscode/.claude.json
-      - ${HOME}/.gitconfig:/home/vscode/.gitconfig
+      - ${HOME}/.gitconfig:/tmp/host-gitconfig:ro
       - dcc-shared:/opt/dcc
       - dcc-cache-deps:/workspaces/${PROJECT_DIR}/node_modules
       - dcc-proj-cmdhist:/commandhistory

@@ -8,6 +8,13 @@ echo "[post-create] start: $(date -Iseconds)"
 sudo chown -R vscode:vscode /opt/dcc /commandhistory ~/.bun 2>/dev/null || true
 sudo chown -R vscode:vscode "$(pwd)/node_modules" 2>/dev/null || true
 
+# 1.5 宿主机 ~/.gitconfig 以只读方式挂到 /tmp/host-gitconfig，拷成本地可写文件
+# （单文件 bind mount 不能原子 rename，VS Code credential-helper / git config 会失败）
+if [ -f /tmp/host-gitconfig ] && [ ! -f ~/.gitconfig ]; then
+  cp /tmp/host-gitconfig ~/.gitconfig
+  chmod 644 ~/.gitconfig
+fi
+
 # 2. shared volume 内部结构 + Linuxbrew 软链
 mkdir -p /opt/dcc/linuxbrew /opt/dcc/cargo /opt/dcc/go /opt/dcc/npm-global \
          /opt/dcc/bun /opt/dcc/pipx /opt/dcc/uv/bin /opt/dcc/uv/python \
