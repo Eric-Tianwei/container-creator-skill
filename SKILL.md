@@ -13,7 +13,9 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 1. **澄清（≤2 问）**：外部服务？（Postgres/Redis/Qdrant/Ollama/无）目标环境？（OrbStack/Docker Desktop/Codespaces）。**不要问主语言**——默认 `javascript-node:1-22-bookworm` 覆盖 Node/Next/React/md/skill；Python 用 post-create 装的 `uv` 按需拉（`uv python install 3.13`）。唯一例外：用户主动说"纯 Python/Rust/Go"才走 `references/base-images.md` 的 escape hatch。
 
-2. **选形态并照搬 example**（`references/examples/<shape>/` 下已是**完整可用** `.devcontainer/`，直接 `cp -r` 到新项目）：
+2. **选形态并照搬 example**（`references/examples/<shape>/` 下已是**完整可用** `.devcontainer/`，直接 `cp -a` 到新项目）：
+
+   > ⚠️ scaffold 是**隐藏目录** `.devcontainer/`（点开头）。用 `ls -la` 才看得到，`ls` / Glob `*` 默认会漏。**必须用 `cp -a references/examples/<shape>/.devcontainer <project>/` 整目录复制**，不要手撸 post-create.sh / init-volumes.sh —— 例子里已处理 linuxbrew 父目录、gitconfig staging cp、`/home/linuxbrew` 坏 symlink 兜底等所有踩过的坑。
    - 无外部服务 → `single-container/`
    - Postgres → `compose-postgres/`
    - Postgres+Redis（Medusa/队列） → `compose-postgres-redis/`
@@ -75,6 +77,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 - **裸 volume 命名 / cache 不标 `scope=cache`**——必须 `dcc.<scope>.<id>`，否则没法批量 prune
 - **`postCreateCommand` 塞 build/test**——一次性 setup 别混业务跑
 - **`COPY . .` 到镜像** / **Dockerfile 里 `apt-get install git curl zsh`**——开发容器是 bind-mount workspace，基础镜像和 features 已有
+- **手撸 `post-create.sh` / `init-volumes.sh` 而不是 `cp -a` 例子的**——例子里已处理一堆隐式陷阱：`/home/linuxbrew` 父目录不存在 / 是坏 symlink 时的兜底、gitconfig 只读 staging→cp、shared volume chown、env 写 `~/.profile` 而非 `containerEnv`。手撸十有八九漏其中一项，post-create 直接 exit 1
 
 ---
 
