@@ -77,6 +77,7 @@ Vercel CLI / Supabase CLI / 等走 `npm i -g`，不做 feature。
       "tamasfe.even-better-toml",
       "mikestead.dotenv",
       "eamodio.gitlens",
+      "mhutchie.git-graph",
       "EditorConfig.EditorConfig",
       "usernamehw.errorlens"
     ]

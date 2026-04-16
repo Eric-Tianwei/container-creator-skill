@@ -44,7 +44,8 @@
         "charliermarsh.ruff",
         "tamasfe.even-better-toml",
         "mikestead.dotenv",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "mhutchie.git-graph"
       ]
     }
   }
