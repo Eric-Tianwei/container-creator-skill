@@ -1,5 +1,6 @@
 ---
 name: container-creator
+version: 0.1.0
 description: 为新项目生成开箱即用、极速、零配置的 devcontainer — 用户打开即可写代码，Claude Code 已登录、skill 已装、全自动模式。当用户开新项目并提到 "devcontainer / 开发环境 / Docker dev / Codespaces 配置 / 可复现环境"，或说 "帮我把环境搭好 / 我想在容器里开发"，即触发。Also triggers for English like "set up a devcontainer", "scaffold a dev env", "reproducible dev setup". 不用于生产 Dockerfile。
 ---
 
