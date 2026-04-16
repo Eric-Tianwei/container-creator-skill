@@ -1,0 +1,48 @@
+# 默认方案 A：Qdrant 独立向量库。
+# 方案 B（pgvector）：把 db.image 换成 pgvector/pgvector:pg17，删除 qdrant service，在 post-create 里
+#   psql "$DATABASE_URL" -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    command: sleep infinity
+    depends_on: [db, qdrant]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/app
+      QDRANT_URL: http://qdrant:6333
+    volumes:
+      - ../..:/workspaces:cached
+      - ${HOME}/.claude:/home/vscode/.claude
+      - ${HOME}/.claude.json:/home/vscode/.claude.json
+      - ${HOME}/.gitconfig:/home/vscode/.gitconfig
+      - dcc-shared:/opt/dcc
+      - dcc-cache-deps:/workspaces/${PROJECT_DIR}/node_modules
+      - dcc-proj-cmdhist:/commandhistory
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+volumes:
+  dcc-shared:
+    external: true
+    name: dcc.shared.${ABI_KEY}
+  dcc-cache-deps:
+    external: true
+    name: dcc.cache.${PROJECT_DIR}.deps
+  dcc-proj-cmdhist:
+    external: true
+    name: dcc.proj.${PROJECT_DIR}.cmdhistory
+  postgres-data:
+  qdrant-data:

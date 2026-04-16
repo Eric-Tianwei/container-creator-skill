@@ -1,0 +1,31 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# 环境
+.env
+.env.local
+.env.*.local
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+
+# devcontainer 运行时文件
+.devcontainer/.env

@@ -1,8 +1,0 @@
-# Medusa 项目 CLI 清单
-# brew/cargo/npm/pipx/go install 会自动追加
-brew: postgresql@16
-cargo:
-npm:
-pipx:
-go:
-apt:

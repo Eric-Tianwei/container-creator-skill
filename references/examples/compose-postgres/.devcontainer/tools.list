@@ -1,0 +1,10 @@
+# CLI 清单（进 git）。透明 wrapper 会在你 `brew install X` / `cargo install Y` 等操作时自动追加。
+# 格式：<backend>: <pkg1> [pkg2 ...]
+# backend: brew / cargo / npm / pipx / go / uv tool / apt
+#
+# 例子：
+#   brew: fd ripgrep jq
+#   cargo: tokei
+#   npm: tsx
+#   uv tool: ruff
+#   apt: libvips-dev   # 只有真需要系统库才用 apt

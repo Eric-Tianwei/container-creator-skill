@@ -6,7 +6,7 @@ skill 的默认配置解决"首次搭建最优"。项目长期演进会遇到新
 
 ### 问题
 
-开发中手动装的 CLI（`brew install fd`、`cargo install ripgrep`、`pipx install httpie`）：
+开发中手动装的 CLI（`brew install fd`、`cargo install ripgrep`、`pipx install httpie`、`uv tool install ruff`）：
 
 - 不写进配置 → 容器重建丢失、新同事不知道存在、git 无记录
 - 每装一个都手改 `devcontainer.json` → 心智负担高，diff 噪音大，大家懒得做
@@ -16,7 +16,7 @@ skill 的默认配置解决"首次搭建最优"。项目长期演进会遇到新
 机制分三块：
 
 1. **`.devcontainer/tools.list`** — 纯文本清单，每行 `<backend>: <pkg...>`，进 git
-2. **`.devcontainer/bin/tools-wrapper.sh`** — 劫持 `brew`/`cargo`/`npm`/`pipx`/`go` 的 shell function，install 时顺手追加到 tools.list
+2. **`.devcontainer/bin/tools-wrapper.sh`** — 劫持 `brew`/`cargo`/`npm`/`pipx`/`go`/`uv` 的 shell function，install 时顺手追加到 tools.list
 3. **`.devcontainer/bin/install-tools.sh`** — 容器 create 时读清单批量安装，**每个后端都做幂等检查**（已装跳过）
 
 **开发体验：**
@@ -31,7 +31,7 @@ $ brew install fd
 
 ### 为什么 rebuild 也快？
 
-配合 **user-level named volume**（`~/.local`、`~/.cargo/bin`、`~/go/bin`、`~/.npm-global`、`/home/linuxbrew/.linuxbrew`），实际 binary 都在 volume 里持久存在。rebuild 时 install-tools.sh 对每个包 grep 一下 "装了吗？" → 命中 → 跳过 → 几十毫秒搞定。
+所有后端的安装路径都重定向到了 **单个 shared volume `/opt/dcc/*`**（见 SKILL.md 硬清单第 8 条）。rebuild 时 install-tools.sh 对每个包 grep 一下 "装了吗？" → 命中 → 跳过 → 几十毫秒搞定。
 
 **真实耗时对比：**
 
@@ -39,18 +39,45 @@ $ brew install fd
 |---|---|
 | 开发中 `brew install fd` | 几秒（=brew install 本身） |
 | 配置自动落 tools.list | 0 秒 |
-| rebuild 容器（20 个 CLI 都在 volume 里） | < 1 秒 |
+| rebuild 容器（20 个 CLI 都在 shared volume 里） | < 1 秒 |
 | 新同事 clone 首次进容器 | ≈ 一次性装所有 CLI 的时间 |
 
 ### apt 怎么办？
 
-`apt` 装的是系统路径，无法挂 volume。用 Linuxbrew（`/home/linuxbrew/.linuxbrew`，挂 volume）替代 apt 是推荐方案。只有**真的需要 libfoo-dev 这种系统库**时才写 `apt:` 行（每次 create 会装一遍，几秒）。
+`apt` 装的是系统路径，无法挂 volume。用 Linuxbrew（`/home/linuxbrew/.linuxbrew`，软链到 `/opt/dcc/linuxbrew`）替代 apt 是推荐方案。只有**真的需要 libfoo-dev 这种系统库**时才写 `apt:` 行（每次 create 会装一遍，几秒）。
 
-## 二、项目专用 skill：分层挂载
+## 二、单 shared volume 的收益
+
+与其为 brew / cargo / go / npm-global / bun / pipx / uv 各挂一个 volume，不如**挂一个 `/opt/dcc`**，内部按工具分子目录，用 env 变量重定向：
+
+```
+/opt/dcc/
+├── linuxbrew/     软链到 /home/linuxbrew/.linuxbrew
+├── cargo/         CARGO_HOME
+├── go/            GOPATH
+├── npm-global/    NPM_CONFIG_PREFIX
+├── bun/           BUN_INSTALL
+├── pipx/          PIPX_HOME
+└── uv/            UV_INSTALL_DIR / UV_PYTHON_INSTALL_DIR / UV_TOOL_DIR
+```
+
+**好处：**
+
+- `docker volume ls` 里每个项目只多一个 `dcc.shared.*`，不是 6-7 个
+- ABI 分桶用 volume 名（`dcc.shared.node22` vs `dcc.shared.py313`）一次切换所有子目录
+- 备份 / prune / 删除一次完成
+- 多容器并发：shared volume 性质是 cache，撞了就重装；**单机 solo dev 几乎不会并发 install**
+
+**约束：**
+
+- env 变量必须在 PID 1 之前生效 → 写 `~/.profile`（交互 shell + 大多数守护进程能读到），**绝不进 `containerEnv.PATH`**（会让容器秒退，见 SKILL.md 反模式）
+- Linuxbrew 只认 `/home/linuxbrew/.linuxbrew`，post-create 里 `sudo ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew`
+
+## 三、项目专用 skill：分层挂载
 
 ### 问题
 
-用户的全局 skill 走宿主机 `~/.claude/skills/` bind mount 完美。但项目演进中会产出"只跟这个项目强相关"的 skill（例如项目的特定 workflow、内部约定）—— 这些不该进全局，但应该在团队内共享。
+用户的全局 skill 走宿主机 `~/.claude/skills/` bind mount 完美。但项目演进中会产出"只跟这个项目强相关"的 skill —— 这些不该进全局，但应该在团队内共享。
 
 ### 方案：两层 skill 目录
 
@@ -83,7 +110,7 @@ done
 
 **效果：** 容器里 `claude` 能同时看到全局 + 项目 skill；项目 skill 跟代码一起 commit；pull request 能审查 skill 变动。
 
-## 三、依赖更新：updateContentCommand
+## 四、依赖更新：updateContentCommand
 
 ### 问题
 
@@ -104,27 +131,19 @@ done
 
 `updateContentCommand` 会在**每次仓库内容更新后**自动跑（pull、rebase、切分支），比每次启动容器都跑快得多，又不会错过依赖变更。
 
-## 四、Volume 治理
+## 五、Volume 治理
 
-### 问题
+### 命名空间 + scope + label
 
-一个项目会产出 8 个 named volume（3 个项目级 + 5 个全局共享）。**N 个项目 = `3N + 5` 个 volume**。没有治理的话，`docker volume ls` 半年后会一团乱：
-
-- 命名撞车（`user-local` 和别的工具的 volume 重名）
-- 项目删了 volume 留成僵尸
-- 分不清哪些可以 prune、哪些数据不能丢
-
-### 方案：命名空间 + scope + label
-
-**命名：** 所有 devcontainer 生成的 volume 统一前缀 `dcc.`（container-creator 专属，避免撞车）+ scope 分类：
+所有 devcontainer 生成的 volume 统一前缀 `dcc.`（container-creator 专属）+ scope 分类：
 
 | 命名模式 | scope 含义 | 例子 |
 |---|---|---|
-| `dcc.shared.<id>` | 全局共享（跨项目） | `dcc.shared.linuxbrew`、`dcc.shared.cargo-bin` |
+| `dcc.shared.<abi-key>` | 全局共享（跨项目，CLI 工具缓存） | `dcc.shared.node22`、`dcc.shared.py313` |
 | `dcc.proj.<project>.<id>` | 项目私有、**要保留** | `dcc.proj.myapp.cmdhistory` |
-| `dcc.cache.<project>.<id>` | 项目缓存、**可随时 prune** | `dcc.cache.myapp.node_modules`、`dcc.cache.myapp.next` |
+| `dcc.cache.<project>.<id>` | 项目缓存、**可随时 prune** | `dcc.cache.myapp.deps` |
 
-关键判断："这个目录丢了我会难过吗"——难过 = `proj`，不难过 = `cache`。`node_modules` 是 cache（lockfile 能重建），`cmdhistory` 是 proj（丢了就丢了）。
+关键判断："这个目录丢了我会难过吗"——难过 = `proj`，不难过 = `cache`。依赖目录是 cache（lockfile 能重建），shell 历史是 proj（丢了就丢了）。shared 是 cache 的一种（丢了 `install-tools.sh` 能重建），但跨项目复用所以单列。
 
 ### 实现：initializeCommand 预创建 + 打 label
 
@@ -144,24 +163,23 @@ set -euo pipefail
 PROJ="$(basename "$PWD")"
 CREATED="$(date -Iseconds)"
 
+# base image 派生 ABI key（AI 生成时按实际 base 写死或从 devcontainer.json 里读）
+ABI_KEY="node22"  # 走 escape hatch 时改成 py313 / rust-bookworm / go-bookworm 等
+
 _v() {
   local name="$1" scope="$2"
   docker volume inspect "$name" >/dev/null 2>&1 && return 0
   docker volume create \
     --label "com.container-creator.scope=${scope}" \
     --label "com.container-creator.project=${PROJ}" \
+    --label "com.container-creator.abi=${ABI_KEY}" \
     --label "com.container-creator.created-at=${CREATED}" \
     "$name" >/dev/null
 }
 
-_v dcc.shared.linuxbrew     shared
-_v dcc.shared.user-local    shared
-_v dcc.shared.cargo-bin     shared
-_v dcc.shared.go-bin        shared
-_v dcc.shared.npm-global    shared
-_v "dcc.proj.${PROJ}.cmdhistory"   project
-_v "dcc.cache.${PROJ}.node_modules" cache
-_v "dcc.cache.${PROJ}.next"         cache
+_v "dcc.shared.${ABI_KEY}"          shared
+_v "dcc.proj.${PROJ}.cmdhistory"    project
+_v "dcc.cache.${PROJ}.deps"         cache
 ```
 
 ### 治理命令（即席使用，无需装工具）
@@ -177,6 +195,9 @@ docker volume ls --filter label=com.container-creator.scope=cache
 # 某项目有哪些 volume
 docker volume ls --filter label=com.container-creator.project=myapp
 
+# 按 ABI 分组（升级 base 后旧 volume 清理）
+docker volume ls --filter label=com.container-creator.abi=node20
+
 # 安全清理：所有 cache volume
 docker volume ls -q --filter label=com.container-creator.scope=cache | xargs docker volume rm
 
@@ -184,7 +205,7 @@ docker volume ls -q --filter label=com.container-creator.scope=cache | xargs doc
 docker volume ls -q --filter label=com.container-creator.project=my-old-project | xargs docker volume rm
 ```
 
-`OrbStack.app` / `Docker Desktop` 的 UI 里所有 `dcc.*` 会按字母序聚集，scope / project 一眼可辨。
+`OrbStack.app` / `Docker Desktop` 的 UI 里所有 `dcc.*` 会按字母序聚集，scope / project / abi 一眼可辨。
 
 ## 六、性能预算
 
@@ -205,18 +226,8 @@ docker volume ls -q --filter label=com.container-creator.project=my-old-project 
 `tools.list` 的本质是"所有我装过的 CLI"，不等于"团队都应该有的 CLI"。定期（例如每个迭代末）做一次清理：
 
 ```bash
-# 人肉过一遍 tools.list，删掉试用过但不常用的
 $EDITOR .devcontainer/tools.list
-
-# commit 清理后的结果
 git commit .devcontainer/tools.list -m "chore: prune tools.list"
-```
-
-或者留个便利命令：
-
-```bash
-# 查某个 CLI 最后一次真的被用是什么时候（看 shell history）
-grep -c "fd " ~/.zsh_history
 ```
 
 久不用的删掉 —— 保持清单 clean，保持 create 时间短。
@@ -228,9 +239,9 @@ grep -c "fd " ~/.zsh_history
 五条机制组合：
 
 1. **透明 wrapper + tools.list** — 装 CLI 零心智负担、自动落档
-2. **user-level named volume** — rebuild 不重装任何东西
+2. **单 shared volume (`/opt/dcc`) + env 重定向** — rebuild 不重装任何东西，治理面最小
 3. **项目专用 skill 分层挂载** — 项目 know-how 跟代码一起走
-4. **Volume 命名空间 + label** — `dcc.<scope>.<id>` 格式 + `initializeCommand` 预创建打 label，多项目下依然井然有序
+4. **Volume 命名空间 + label + ABI key** — `dcc.<scope>.<id>` 格式 + `initializeCommand` 预创建打 label，多项目下依然井然有序
 5. **updateContentCommand + 性能预算** — 依赖变更自动同步，防止配置腐化
 
 任何项目加一个 CLI 的完整流程：
@@ -239,7 +250,7 @@ grep -c "fd " ~/.zsh_history
 brew install fd
 # ↑ 一条命令，和宿主机体感完全一样
 # 下面的事自动发生：
-#   1. 装进 /home/linuxbrew/.linuxbrew（named volume，持久）
+#   1. 装进 /opt/dcc/linuxbrew（shared volume，持久）
 #   2. 追加 "brew: fd" 到 tools.list（git 追踪）
 #   3. rebuild / 新成员 → install-tools.sh 读清单秒级恢复
 ```

@@ -1,0 +1,44 @@
+# 默认：M 系列 Mac 走宿主机 Ollama（Metal 加速），只配 OLLAMA_BASE_URL + extra_hosts。
+# Linux + NVIDIA GPU：把下面 ollama service 取消注释，并把 OLLAMA_BASE_URL 改成 http://ollama:11434。
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    command: sleep infinity
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../..:/workspaces:cached
+      - ${HOME}/.claude:/home/vscode/.claude
+      - ${HOME}/.claude.json:/home/vscode/.claude.json
+      - ${HOME}/.gitconfig:/home/vscode/.gitconfig
+      - dcc-shared:/opt/dcc
+      - dcc-cache-deps:/workspaces/${PROJECT_DIR}/node_modules
+      - dcc-proj-cmdhist:/commandhistory
+
+  # Linux + NVIDIA GPU 取消注释：
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+
+volumes:
+  dcc-shared:
+    external: true
+    name: dcc.shared.${ABI_KEY}
+  dcc-cache-deps:
+    external: true
+    name: dcc.cache.${PROJECT_DIR}.deps
+  dcc-proj-cmdhist:
+    external: true
+    name: dcc.proj.${PROJECT_DIR}.cmdhistory
+  # ollama-data:
