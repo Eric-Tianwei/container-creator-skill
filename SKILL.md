@@ -5,234 +5,81 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 # Container Creator
 
-目标：**让用户进容器就能写代码，让 Claude 在隔离沙箱里全自动开发**。三条铁律：
-
-1. **开箱即用** — `claude` 直接可用（已登录、全自动模式、skills 齐备）
-2. **极速性能** — macOS 用 OrbStack；依赖目录走 per-project cache volume；CLI 工具走 1 个跨项目 shared volume；宿主机 `~/.claude` bind mount
-3. **零配置** — 不问编辑器、不问 shell、不问要不要 git、不问语言。只问外部服务和目标环境
+**目标**：用户进容器就能写代码，Claude 在隔离沙箱全自动开发。三条铁律：**开箱即用**（`claude` 已登录+全自动+skills 齐）/ **极速**（OrbStack + 依赖 cache volume + 单 shared volume + `~/.claude` bind）/ **零配置**（只问外部服务和目标环境，不问语言/shell/编辑器）。
 
 ---
 
 ## 工作流
 
-### 1. 澄清（最多 2 问，一次性）
+1. **澄清（≤2 问）**：外部服务？（Postgres/Redis/Qdrant/Ollama/无）目标环境？（OrbStack/Docker Desktop/Codespaces）。**不要问主语言**——默认 `javascript-node:1-22-bookworm` 覆盖 Node/Next/React/md/skill；Python 用 post-create 装的 `uv` 按需拉（`uv python install 3.13`）。唯一例外：用户主动说"纯 Python/Rust/Go"才走 `references/base-images.md` 的 escape hatch。
 
-- 要哪些外部服务？（Postgres / Redis / Qdrant / Ollama / 无）
-- 目标环境？（本地 OrbStack / Docker Desktop / Codespaces）
+2. **选形态并照搬 example**（`references/examples/<shape>/` 下已是**完整可用** `.devcontainer/`，直接 `cp -r` 到新项目）：
+   - 无外部服务 → `single-container/`
+   - Postgres → `compose-postgres/`
+   - Postgres+Redis（Medusa/队列） → `compose-postgres-redis/`
+   - 向量库（AI/RAG） → `compose-postgres-vector/`
+   - 本地 LLM → `compose-ollama/`
 
-**不要问"主语言"**——默认 base 是 `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm`，覆盖 Node / Next.js / React / skill 编辑 / md；Python 通过 post-create 里装的 `uv` 按需拿到（`uv python install 3.13` 把任意 Python 版本装进 shared volume）。
+3. **按硬清单核对**（下一节）。
 
-唯一例外——**用户主动说"这是纯 Python / Rust / Go 项目"**，才走单语言 escape hatch（见 `references/base-images.md`）。
+4. **交付两行话**：打开方式（"VS Code 接受 Reopen in Container"）；首跑 ~1.2GB / 30s，进去 `claude` 即用。
 
-### 2. 选形态（examples 按"项目形态"分）
-
-- 无外部服务 → `single-container/`
-- 要 Postgres → `compose-postgres/`
-- 要 Postgres + Redis（含 Medusa / 队列驱动） → `compose-postgres-redis/`
-- 要向量库（Qdrant / pgvector，AI 应用） → `compose-postgres-vector/`
-- 要本地 LLM → `compose-ollama/`
-
-**铁律：选定形态后必须先读对应 `references/examples/<shape>/`**。主清单只列跨形态通用项，形态专属默认（端口 / 环境变量 / postCreate 业务步骤）只在 examples 里。
-
-### 3. 几乎从不写 Dockerfile
-
-`javascript-node` 镜像已经装齐 Node LTS + pnpm/yarn/npm + git + zsh + 常用工具。只有"项目需要系统库但 features 没有"才写 Dockerfile（`libvips`、`ffmpeg` 等）。
-
-### 4. 按硬清单落地（下一节）
-
-### 5. 交付两行话
-
-- 一行：打开方式（"VS Code 接受 Reopen in Container"）
-- 一行：首次 pull 镜像约 1.2GB / 30 秒，进去 `claude` 即用
+**几乎从不写 Dockerfile**——`javascript-node` 已有 Node LTS + pnpm/yarn/npm + git + zsh。只有"要系统库 features 没有"（`libvips`/`ffmpeg` 等）才写。
 
 ---
 
-## 默认配置硬清单（AI 执行时照搬）
+## 硬清单（用户没说"不要"就全落地）
 
-用户没明确说"不要"，下面全部落地。
-
-### 必做项
-
-| # | 项目 | 实现 |
+| # | 项目 | 要点 |
 |---|---|---|
-| 1 | Claude Code 已登录 | **同时 bind mount 两处**：`~/.claude`（目录，含认证/skills/settings）+ `~/.claude.json`（文件，主配置）。漏挂 `.claude.json` 会导致进容器报 "Claude configuration file not found"。`initializeCommand` 里先 `[ -e ~/.claude.json ] \|\| touch ~/.claude.json` 保证宿主机存在 |
-| 2 | `claude` 全自动模式 | `~/.zshrc` 加 `alias claude='claude --dangerously-skip-permissions'` |
-| 3 | agent-browser 预装 | `npx skills add vercel-labs/agent-browser@agent-browser -g -y \|\| true` |
-| 4 | skill-creator 预装 | `npx skills add anthropics/skills@skill-creator -g -y \|\| true` |
-| 5 | 非 root 用户 | `"remoteUser": "vscode"` |
-| 6 | **base image 默认 javascript-node** | `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm` |
-| 7 | **uv（Python 按需）** | post-create 里 `curl -LsSf https://astral.sh/uv/install.sh \| sh`，`UV_INSTALL_DIR=/opt/dcc/uv`；用户 `uv python install <ver>` 按需拉 Python |
-| 8 | **单 shared volume（跨项目 CLI 工具缓存）** | `dcc.shared.node22` → `/opt/dcc`；内部布局 `linuxbrew/ cargo/ go/ npm-global/ bun/ pipx/ uv/`；post-create 里 `sudo ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew`、写 `CARGO_HOME=/opt/dcc/cargo`、`GOPATH=/opt/dcc/go`、`NPM_CONFIG_PREFIX=/opt/dcc/npm-global`、`BUN_INSTALL=/opt/dcc/bun`、`PIPX_HOME=/opt/dcc/pipx`、`UV_INSTALL_DIR=/opt/dcc/uv` 到 `~/.profile` |
-| 9 | per-project 依赖 cache volume | `dcc.cache.<proj>.deps` 挂到项目依赖目录（Node 项目挂 `node_modules`；Python 项目挂 `.venv`） |
-| 10 | per-project shell 历史 | `dcc.proj.<proj>.cmdhistory` 挂 `/commandhistory`，`HISTFILE` 指过去 |
-| 11 | 最小 Features 集 | `common-utils`（zsh+OhMyZsh）、`git`、`github-cli`、按需 `docker-outside-of-docker` |
-| 12 | 公共 VS Code 扩展集（全装，轻量） | `anthropic.claude-code` + `dbaeumer.vscode-eslint` + `esbenp.prettier-vscode` + `ms-python.python` + `ms-python.vscode-pylance` + `charliermarsh.ruff` + `tamasfe.even-better-toml` + `mikestead.dotenv` + `eamodio.gitlens` |
-| 13 | 透明 wrapper + tools.list | `.devcontainer/bin/tools-wrapper.sh` 劫持 brew/cargo/npm/pipx/go/uv install，自动追加到 `.devcontainer/tools.list`；`.devcontainer/bin/install-tools.sh` 在 postCreate 读清单幂等同步（工具落到 `/opt/dcc/*`，持久） |
-| 14 | 项目专用 skill 分层挂载（可选） | `${localWorkspaceFolder}/.claude/skills` bind mount 进容器并软链到 `~/.claude/skills/` |
-| 15 | 依赖同步用 `updateContentCommand` | `pnpm install --frozen-lockfile` 之类放这里，lockfile 变更才跑 |
-| 16 | Volume 命名走 `dcc.<scope>.<id>` | `dcc.shared.node22`（跨项目，ABI key 跟 base image 绑定）/ `dcc.proj.<proj>.*`（项目私有）/ `dcc.cache.<proj>.*`（可 prune）。`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/created-at`） |
-| 17 | 宿主机 git 身份复用 | **只读**挂到 staging 路径：`source=${localEnv:HOME}/.gitconfig,target=/tmp/host-gitconfig,type=bind,readonly`；`initializeCommand` 里 touch 保证宿主文件存在；post-create 里 `cp /tmp/host-gitconfig ~/.gitconfig`（首次）。**不能**直接 bind 到 `~/.gitconfig`——单文件 bind mount 阻止原子 rename，VS Code 注入 credential-helper 和 `git config --global` 都会 `Device or resource busy` |
+| 1 | Claude Code 已登录 | **两处都要 bind**：`~/.claude`（目录）+ `~/.claude.json`（文件）。漏挂 `.claude.json` 进去报 "Claude configuration file not found" |
+| 2 | `claude` 全自动 | `~/.zshrc` 加 `alias claude='claude --dangerously-skip-permissions'` |
+| 3 | agent-browser + skill-creator 预装 | post-create `npx -y skills add vercel-labs/agent-browser@agent-browser -g -y` 同理 skill-creator |
+| 4 | 非 root | `"remoteUser": "vscode"` |
+| 5 | **base 默认** | `mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm` |
+| 6 | **uv（Python 按需）** | post-create 装 uv，`UV_INSTALL_DIR=/opt/dcc/uv/bin` |
+| 7 | **单 shared volume** | `dcc.shared.node22` → `/opt/dcc`，内部 `linuxbrew/cargo/go/npm-global/bun/pipx/uv/`；post-create 把 `CARGO_HOME/GOPATH/NPM_CONFIG_PREFIX/BUN_INSTALL/PIPX_HOME/UV_INSTALL_DIR` 指进去 + Linuxbrew 软链 |
+| 8 | per-project 依赖 cache | `dcc.cache.<proj>.deps` 挂依赖目录（Node→`node_modules`；Python→`.venv`） |
+| 9 | per-project shell 历史 | `dcc.proj.<proj>.cmdhistory` → `/commandhistory`，`HISTFILE` 指过去 |
+| 10 | Features | `common-utils` + `git` + `github-cli`，按需 `docker-outside-of-docker` |
+| 11 | VS Code 扩展 | `anthropic.claude-code` + eslint/prettier/python/pylance/ruff/even-better-toml/dotenv/gitlens |
+| 12 | 透明 wrapper + tools.list | `.devcontainer/bin/tools-wrapper.sh` 劫持 brew/cargo/npm/pipx/go/uv install 自动记录；`install-tools.sh` postCreate 幂等重放 |
+| 13 | 项目专用 skill（可选） | `${localWorkspaceFolder}/.claude/skills` bind + 软链进 `~/.claude/skills/` |
+| 14 | 依赖同步走 `updateContentCommand` | `pnpm install --frozen-lockfile` / `uv sync` 之类放这里，lockfile 变才跑 |
+| 15 | Volume 命名 `dcc.<scope>.<id>` | `dcc.shared.<abi>` / `dcc.proj.<proj>.*` / `dcc.cache.<proj>.*`；`initializeCommand` 预创建并打 label（`com.container-creator.scope/project/abi/created-at`） |
+| 16 | git 身份复用 | `.gitconfig` **只读**挂到 `/tmp/host-gitconfig`，post-create 里 `cp` 成本地文件。**不能**直接 bind 到 `~/.gitconfig` |
 
-### 最小 devcontainer.json 骨架
-
-```jsonc
-{
-  "name": "${PROJECT_NAME}",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
-  "remoteUser": "vscode",
-  "initializeCommand": "bash .devcontainer/bin/init-volumes.sh",
-  "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true, "configureZshAsDefaultShell": true, "installOhMyZsh": true
-    },
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
-  },
-  "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gitconfig,target=/tmp/host-gitconfig,type=bind,readonly",
-    "source=dcc.shared.node22,target=/opt/dcc,type=volume",
-    "source=dcc.cache.${localWorkspaceFolderBasename}.deps,target=${containerWorkspaceFolder}/node_modules,type=volume",
-    "source=dcc.proj.${localWorkspaceFolderBasename}.cmdhistory,target=/commandhistory,type=volume"
-  ],
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-  "customizations": { "vscode": { "extensions": ["anthropic.claude-code"] } }
-}
-```
-
-> Python 项目把依赖 cache 目标从 `node_modules` 改成 `.venv`；Rust 改 `target`（此时走 escape hatch 换 rust base）。
-
-### 标准 post-create.sh 模板
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# 权限：shared volume 和 cache volume 第一次挂进来都是 root
-sudo chown -R vscode:vscode /opt/dcc /commandhistory 2>/dev/null || true
-sudo chown -R vscode:vscode node_modules 2>/dev/null || true
-
-# 1. shared volume 内部结构 + Linuxbrew 软链
-mkdir -p /opt/dcc/linuxbrew /opt/dcc/cargo /opt/dcc/go /opt/dcc/npm-global \
-         /opt/dcc/bun /opt/dcc/pipx /opt/dcc/uv/bin /opt/dcc/uv/python \
-         /opt/dcc/uv/tools /opt/dcc/local
-# /home/linuxbrew 可能是不存在 / 普通目录 / 坏 symlink — 统一规整为实目录再做 ln
-sudo sh -c '
-  if [ -L /home/linuxbrew ] || { [ -e /home/linuxbrew ] && [ ! -d /home/linuxbrew ]; }; then
-    rm -f /home/linuxbrew
-  fi
-  mkdir -p /home/linuxbrew
-  ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew
-  chown -R vscode:vscode /home/linuxbrew
-'
-test -d /home/linuxbrew/.linuxbrew
-
-# 2. 环境变量写 ~/.profile
-cat >> ~/.profile <<'EOF'
-
-# container-creator shared volume 路径
-export CARGO_HOME=/opt/dcc/cargo
-export GOPATH=/opt/dcc/go
-export NPM_CONFIG_PREFIX=/opt/dcc/npm-global
-export BUN_INSTALL=/opt/dcc/bun
-export PIPX_HOME=/opt/dcc/pipx
-export PIPX_BIN_DIR=/opt/dcc/pipx/bin
-export UV_INSTALL_DIR=/opt/dcc/uv/bin
-export UV_PYTHON_INSTALL_DIR=/opt/dcc/uv/python
-export UV_TOOL_DIR=/opt/dcc/uv/tools
-export PATH="/opt/dcc/cargo/bin:/opt/dcc/go/bin:/opt/dcc/npm-global/bin:/opt/dcc/bun/bin:/opt/dcc/pipx/bin:/opt/dcc/uv/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
-EOF
-# shellcheck disable=SC1091
-source ~/.profile
-
-# 3. Claude Code + agent-browser + skill-creator
-npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk
-npx -y skills add vercel-labs/agent-browser@agent-browser -g -y || true
-npx -y skills add anthropics/skills@skill-creator -g -y || true
-
-# 4. uv（Python 按需运行时）
-command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 5. Bun（可选，Node 项目常用）
-command -v bun >/dev/null || curl -fsSL https://bun.sh/install | bash
-
-# 6. claude 全自动模式 + 历史持久化
-cat >> ~/.zshrc <<'EOF'
-
-# container-creator 默认配置
-[ -f ~/.profile ] && source ~/.profile
-alias claude='claude --dangerously-skip-permissions'
-export HISTFILE=/commandhistory/.zsh_history
-export HISTSIZE=10000 SAVEHIST=10000
-setopt INC_APPEND_HISTORY SHARE_HISTORY
-EOF
-touch /commandhistory/.zsh_history
-
-# 7. 项目依赖（按形态替换）
-# Node:   sudo corepack enable && pnpm install     # corepack 写 /usr/local/bin，必须 sudo
-# Python: uv sync                                  # uv 会自动建 .venv
-# Rust:   cargo fetch                              # 走 escape hatch rust base
-
-# 写 /usr/local/{bin,sbin} 的命令一律 sudo（vscode 已配免密 sudo）。
-# 凡 NPM_CONFIG_PREFIX 指过 /opt/dcc/npm-global 的 npm i -g 不要 sudo（否则装到 root 目录）。
-```
-
-> `--dangerously-skip-permissions` 让容器里的 Claude Code 跳过所有权限确认，全自动执行工具。容器本身是隔离沙箱，这是合理的。绕过 alias 用 `\claude` 或 `unalias claude`。
+> 完整可用的 `devcontainer.json` / `post-create.sh` / `init-volumes.sh` / `tools-wrapper.sh` / `install-tools.sh` 全在 `references/examples/<shape>/.devcontainer/`，**照搬即可，不要手撸**。`--dangerously-skip-permissions` 绕过：`\claude` 或 `unalias claude`。
 
 ---
 
 ## 关键例外
 
-- **Codespaces / 远程 VM**：`~/.claude` bind mount 不成立。改用 named volume，首次跑 `claude` 登录一次即可持久化。或让用户在 Codespaces secrets 里设 `ANTHROPIC_API_KEY`。
-- **macOS 宿主机未装容器 runtime**：交付时告诉用户 `brew install orbstack`（不推荐 Docker Desktop）。
-- **用户说"这是纯 Python / Rust / Go 项目"**：走 escape hatch，从 `references/base-images.md` 白名单里选对应单语言镜像。shared volume 名改为 `dcc.shared.<image>-<major>`（例如 `dcc.shared.py313`、`dcc.shared.rust-bookworm`），和 node22 的 shared volume **自动隔离**，不会串 ABI。
+- **Codespaces**：`~/.claude` bind 失效，改 named volume + 首次 `claude` 登录；或 secrets 里 `ANTHROPIC_API_KEY`
+- **macOS 无容器 runtime**：告诉用户 `brew install orbstack`（不推荐 Docker Desktop）
+- **escape hatch（纯 Py/Rust/Go）**：从 `references/base-images.md` 白名单选；shared volume 名改成 `dcc.shared.<image>-<major>`（`dcc.shared.py313` / `dcc.shared.rust-bookworm` 等），和 node22 自动隔离
 
 ---
 
-## References（按需读，不要全部加载）
+## 反模式（每条都踩过坑，别重新发明）
 
-- `references/base-images.md` — javascript-node 默认 + 单语言 escape hatch 白名单
-- `references/features.md` — Features 组合 + 公共 VS Code 扩展集
-- `references/performance.md` — volume / cache / mount 片段
-- `references/ai-tooling.md` — Claude Code / MCP / agent-browser 详解
-- `references/compose-recipes.md` — 数据库/缓存/向量库栈
-- `references/evolution.md` — 项目演进时的性能守门（tools.list、单 shared volume、项目专用 skill、updateContentCommand、性能预算）
-- `references/examples/` — 按项目形态的完整可用示例
-
----
-
-## 反模式
-
-- Dockerfile 里 `apt-get install git curl zsh` — 基础镜像和 features 已有
-- `"postCreateCommand": "npm install && npm run build && npm test"` — 一次性 setup 别带 build/test
-- `COPY . .` 到镜像里 — 开发容器是 bind-mount workspace
-- 加用户没点名的服务 — 每多一个容器，启动时间你每天付
-- 把 `~/.claude` 挂 named volume 而不是 bind — 失去"共享宿主机认证和 skill"的核心价值
-- **按语言切 base image**（除非用户主动要 escape hatch） — 默认 javascript-node + uv 按需拿 Python 已覆盖 95% 场景
-- **把 shared volume 拆成 6 个** — 治理面 ×6 换不来任何性能收益。用 1 个 `/opt/dcc` + env 变量/软链重定向
-- 在 devcontainer.json 里零散塞 `"npm i -g X && cargo install Y"` — 用 `.devcontainer/tools.list` 集中管理，透明 wrapper 自动维护
-- 用 apt 装开发用 CLI（fd/ripgrep/jq 之类） — 用 Linuxbrew 代替（走 shared volume，重建不丢）
-- 裸 volume 命名（`node_modules` / `user-local`）— 必须用 `dcc.<scope>.<id>` 格式
-- cache 类 volume 不标 `scope=cache` — 就没法做批量 prune
-- **在 `containerEnv` 里设 `PATH`**（尤其用 `${containerEnv:PATH}` 拼接）— `${containerEnv:PATH}` 只读镜像里**显式声明**的 `ENV PATH`，MCR 多数 devcontainer 镜像继承 debian 隐式 PATH 没显式声明，替换结果是空串。`containerEnv` 直接覆盖 PID 1 环境，devcontainer CLI 注入的 `while sleep 1` 保活循环找不到 `sleep`，**容器秒退 + 日志只有 `sleep: not found`**。所有 PATH 自定义一律走 `~/.profile` / `~/.zshrc`
-- **`corepack enable` / 任何写 `/usr/local/{bin,sbin}` 的命令不加 `sudo`** — vscode 用户对 `/usr/local/bin` 没写权限，会 `EACCES: symlink ... '/usr/local/bin/pnpm'`。一律 `sudo corepack enable`
-- **走 escape hatch 时脑补 `1-<最新主版本>-bookworm` tag**（例如 `1-24-bookworm`）— MCR 发布滞后运行时数月。走 escape hatch 必须从 `references/base-images.md` 白名单选；不在列表用 `1-bookworm` 兜底
-- **`~/.gitconfig` 直接单文件 bind mount 进容器** — Linux 单文件 bind mount 锁住 inode，任何"写 tmp 再 rename"都 `Device or resource busy`。VS Code 启动时自动注入 `git config --global credential.helper`、用户随手 `git config --global ...` 都会炸。必须只读挂到 `/tmp/host-gitconfig`，post-create 里 `cp` 成本地普通文件（`.claude.json` 没这问题是因为 Claude Code 用 fs.writeFile 原地覆盖，不走 rename）
+- **按语言切 base image**（除非用户主动 escape hatch）——默认 javascript-node + uv 已覆盖 95% 场景
+- **把 shared volume 拆 6 个**——治理面 ×6 无性能收益
+- **`containerEnv` 里设 `PATH`**——`${containerEnv:PATH}` 只读镜像**显式** `ENV PATH`，MCR 多数镜像无显式声明，替换成空串；PID 1 PATH 没 `sleep`，devcontainer CLI 的 `while sleep 1` 保活循环炸，**容器秒退只报 `sleep: not found`**。PATH 只走 `~/.profile` / `~/.zshrc`
+- **`corepack enable` / 写 `/usr/local/{bin,sbin}` 不加 `sudo`**——vscode 没权限，`EACCES`
+- **走 escape hatch 脑补 `1-<最新主版本>-bookworm` tag**（如 `1-24-bookworm`）——MCR 发布滞后运行时数月，不在白名单就用 `1-bookworm` 兜底
+- **`.gitconfig` 单文件 bind 到 `~/.gitconfig`**——Linux 锁 inode，`git config` 原子 rename 炸 `Device or resource busy`（VS Code 启动时自动注入 credential-helper 必中）。只读挂 staging 再 cp
+- **`~/.claude` 挂 named volume 而不是 bind**——失去"共享宿主认证和 skill"的核心价值
+- **零散在 devcontainer.json 塞 `npm i -g X && cargo install Y`**——用 `tools.list` + wrapper
+- **apt 装开发 CLI（fd/ripgrep/jq）**——用 Linuxbrew（走 shared volume 持久）
+- **裸 volume 命名 / cache 不标 `scope=cache`**——必须 `dcc.<scope>.<id>`，否则没法批量 prune
+- **`postCreateCommand` 塞 build/test**——一次性 setup 别混业务跑
+- **`COPY . .` 到镜像** / **Dockerfile 里 `apt-get install git curl zsh`**——开发容器是 bind-mount workspace，基础镜像和 features 已有
 
 ---
 
-## 交付自检（写完必过）
+## References（按需读）
 
-- [ ] base image 是 `javascript-node:1-22-bookworm`（或用户明确要 escape hatch 才用白名单单语言镜像）
-- [ ] `~/.claude`（目录 bind）+ `~/.claude.json`（文件 bind）+ `.gitconfig`（**只读** bind 到 `/tmp/host-gitconfig`，post-create 里 cp）全配（除非 Codespaces）
-- [ ] `alias claude='claude --dangerously-skip-permissions'` 已写入 `~/.zshrc`
-- [ ] `postCreateCommand` 装了 Claude Code + agent-browser + skill-creator + uv
-- [ ] 单 shared volume `dcc.shared.node22` → `/opt/dcc` 挂上了，post-create 里写了 env 变量 + Linuxbrew 软链
-- [ ] 依赖目录挂了 `dcc.cache.<proj>.deps` volume
-- [ ] `remoteUser: vscode`
-- [ ] `forwardPorts` 只列项目真正用的端口
-- [ ] 没有多余的服务、没有多余的 Feature
-- [ ] **没在 `containerEnv` 里写 `PATH`**（PATH 自定义只能进 `~/.profile` / `~/.zshrc`）
-- [ ] post-create 里 `corepack enable` 等写 `/usr/local/bin` 的命令都加了 `sudo`
-- [ ] 选定形态后已读对应 `references/examples/<shape>/`，形态专属默认一项不漏
+- `references/examples/<shape>/` — **首选**，完整可用 scaffold
+- `references/base-images.md` — escape hatch 白名单
+- `references/features.md` / `references/performance.md` / `references/evolution.md` / `references/compose-recipes.md` / `references/ai-tooling.md`
