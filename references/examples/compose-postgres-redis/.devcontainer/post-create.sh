@@ -62,7 +62,7 @@ if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/
 fi
 
 # 5. Claude Code + Agent SDK + agent-browser CLI
-npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk agent-browser
+npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk agent-browser @jackwener/opencli
 npx -y skills add vercel-labs/agent-browser@agent-browser -g -y || true
 npx -y skills add anthropics/skills@skill-creator -g -y || true
 
