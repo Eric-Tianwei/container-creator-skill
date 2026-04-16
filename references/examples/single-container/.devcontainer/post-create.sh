@@ -84,17 +84,8 @@ if [ -d ./.claude/skills ]; then
   done
 fi
 
-# 11. 自动 git init + 初始 commit（仅当 .git 不存在）
-if [ ! -d .git ]; then
-  git init -b main
-  [ -f .gitignore ] || cp .devcontainer/.gitignore.template .gitignore
-  git add -A
-  if git config user.email >/dev/null 2>&1; then
-    git commit -m "chore: bootstrap devcontainer" || true
-  fi
-fi
 
-# 12. 业务步骤占位（按项目替换 / 删除）
+# 11. 业务步骤占位（按项目替换 / 删除）
 # Node:   sudo corepack enable && pnpm install
 # Python: uv python install 3.13 && uv sync
 
