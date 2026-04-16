@@ -14,7 +14,6 @@
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/chromium:1": {}
   },
   "forwardPorts": [
     3000,

@@ -43,7 +43,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 | 7 | **单 shared volume** | `dcc.shared.node22` → `/opt/dcc`，内部 `linuxbrew/cargo/go/npm-global/bun/pipx/uv/`；post-create 把 `CARGO_HOME/GOPATH/NPM_CONFIG_PREFIX/BUN_INSTALL/PIPX_HOME/UV_INSTALL_DIR` 指进去 + Linuxbrew 软链 |
 | 8 | per-project 依赖 cache | `dcc.cache.<proj>.deps` 挂依赖目录（Node→`node_modules`；Python→`.venv`） |
 | 9 | per-project shell 历史 | `dcc.proj.<proj>.cmdhistory` → `/commandhistory`，`HISTFILE` 指过去 |
-| 10 | Features | `common-utils` + `git` + `github-cli` + `chromium`（agent-browser 运行时依赖），按需 `docker-outside-of-docker` |
+| 10 | Features | `common-utils` + `git` + `github-cli`，按需 `docker-outside-of-docker`。Chromium（agent-browser 依赖）**不走 feature**（`ghcr.io/devcontainers-contrib/features/chromium:1` 已不可用），改在 post-create 里 `sudo apt-get install -y --no-install-recommends chromium` |
 | 11 | VS Code 扩展 | `anthropic.claude-code` + eslint/prettier/python/pylance/ruff/even-better-toml/dotenv/gitlens |
 | 12 | 透明 wrapper + tools.list | `.devcontainer/bin/tools-wrapper.sh` 劫持 brew/cargo/npm/pipx/go/uv install 自动记录；`install-tools.sh` postCreate 幂等重放 |
 | 13 | 项目专用 skill（可选） | `${localWorkspaceFolder}/.claude/skills` bind + 软链进 `~/.claude/skills/` |

@@ -56,6 +56,11 @@ if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
 fi
 
+# 4.5 Chromium（agent-browser 运行时依赖，feature 不可用故走 apt）
+if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+  sudo apt-get update && sudo apt-get install -y --no-install-recommends chromium || true
+fi
+
 # 5. Claude Code + Agent SDK + agent-browser CLI
 npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk agent-browser
 npx -y skills add vercel-labs/agent-browser@agent-browser -g -y || true
