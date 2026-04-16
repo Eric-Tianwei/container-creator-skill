@@ -34,7 +34,7 @@ description: 为新项目生成开箱即用、极速、零配置的 devcontainer
 
 | # | 项目 | 要点 |
 |---|---|---|
-| 1 | Claude Code 已登录 | **两处都要 bind**：`~/.claude`（目录）+ `~/.claude.json`（文件）。漏挂 `.claude.json` 进去报 "Claude configuration file not found" |
+| 1 | Claude Code 已登录 | **两处都要 bind**：`~/.claude`（目录）+ `~/.claude.json`（文件）。漏挂 `.claude.json` 进去报 "Claude configuration file not found"。**macOS**：`initializeCommand` 里从 Keychain 导出 `~/.claude/.credentials.json`（新版 Claude Code 把 OAuth token 存 Keychain 不存文件，容器读不到 Keychain） |
 | 2 | `claude` 全自动 | `~/.zshrc` 加 `alias claude='claude --dangerously-skip-permissions'` |
 | 3 | agent-browser + skill-creator 预装 | post-create `npx -y skills add vercel-labs/agent-browser@agent-browser -g -y` 同理 skill-creator |
 | 4 | 非 root | `"remoteUser": "vscode"` |

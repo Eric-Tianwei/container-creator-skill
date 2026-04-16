@@ -36,3 +36,15 @@ _v "dcc.cache.${PROJ}.deps"      cache
 # 保证宿主机 ~/.claude.json 和 ~/.gitconfig 存在（不然 bind mount 会把它们建成目录）
 [ -e "$HOME/.claude.json" ] || touch "$HOME/.claude.json"
 [ -e "$HOME/.gitconfig" ]   || touch "$HOME/.gitconfig"
+
+# macOS Keychain → ~/.claude/.credentials.json
+# 新版 Claude Code 把 OAuth token 存 Keychain 而不是文件，容器访问不到 Keychain，
+# 这里在宿主机侧导出到文件，bind mount ~/.claude 时自动带进容器。
+if command -v security >/dev/null 2>&1; then
+  cred_json="$(security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null || true)"
+  if [ -n "$cred_json" ]; then
+    mkdir -p "$HOME/.claude"
+    echo "$cred_json" > "$HOME/.claude/.credentials.json"
+    chmod 600 "$HOME/.claude/.credentials.json"
+  fi
+fi
