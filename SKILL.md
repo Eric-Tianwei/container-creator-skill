@@ -114,8 +114,19 @@ sudo chown -R vscode:vscode /opt/dcc /commandhistory 2>/dev/null || true
 sudo chown -R vscode:vscode node_modules 2>/dev/null || true
 
 # 1. shared volume 内部结构 + Linuxbrew 软链
-mkdir -p /opt/dcc/{linuxbrew,cargo,go,npm-global,bun,pipx,uv,local}
-[ -L /home/linuxbrew/.linuxbrew ] || sudo ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew
+mkdir -p /opt/dcc/linuxbrew /opt/dcc/cargo /opt/dcc/go /opt/dcc/npm-global \
+         /opt/dcc/bun /opt/dcc/pipx /opt/dcc/uv/bin /opt/dcc/uv/python \
+         /opt/dcc/uv/tools /opt/dcc/local
+# /home/linuxbrew 可能是不存在 / 普通目录 / 坏 symlink — 统一规整为实目录再做 ln
+sudo sh -c '
+  if [ -L /home/linuxbrew ] || { [ -e /home/linuxbrew ] && [ ! -d /home/linuxbrew ]; }; then
+    rm -f /home/linuxbrew
+  fi
+  mkdir -p /home/linuxbrew
+  ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew
+  chown -R vscode:vscode /home/linuxbrew
+'
+test -d /home/linuxbrew/.linuxbrew
 
 # 2. 环境变量写 ~/.profile
 cat >> ~/.profile <<'EOF'

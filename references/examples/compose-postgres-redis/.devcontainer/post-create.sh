@@ -9,12 +9,20 @@ sudo chown -R vscode:vscode /opt/dcc /commandhistory ~/.bun 2>/dev/null || true
 sudo chown -R vscode:vscode "$(pwd)/node_modules" 2>/dev/null || true
 
 # 2. shared volume 内部结构 + Linuxbrew 软链
-mkdir -p /opt/dcc/{linuxbrew,cargo,go,npm-global,bun,pipx,uv/bin,uv/python,uv/tools,local}
-if [ ! -L /home/linuxbrew/.linuxbrew ]; then
-  sudo mkdir -p /home/linuxbrew
-  sudo ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew
-  sudo chown -R vscode:vscode /home/linuxbrew
-fi
+mkdir -p /opt/dcc/linuxbrew /opt/dcc/cargo /opt/dcc/go /opt/dcc/npm-global \
+         /opt/dcc/bun /opt/dcc/pipx /opt/dcc/uv/bin /opt/dcc/uv/python \
+         /opt/dcc/uv/tools /opt/dcc/local
+# /home/linuxbrew 可能是：不存在 / 普通目录 / 坏 symlink，统一规整为实目录
+sudo sh -c '
+  if [ -L /home/linuxbrew ] || { [ -e /home/linuxbrew ] && [ ! -d /home/linuxbrew ]; }; then
+    rm -f /home/linuxbrew
+  fi
+  mkdir -p /home/linuxbrew
+  ln -sfn /opt/dcc/linuxbrew /home/linuxbrew/.linuxbrew
+  chown -R vscode:vscode /home/linuxbrew
+'
+# 验证软链有效（失败则早报错好排查）
+test -d /home/linuxbrew/.linuxbrew
 
 # 3. 环境变量写 ~/.profile（只写一次）
 if ! grep -q 'container-creator shared volume' ~/.profile 2>/dev/null; then
