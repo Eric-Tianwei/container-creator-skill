@@ -4,9 +4,7 @@
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "remoteUser": "vscode",
-
   "initializeCommand": "bash .devcontainer/bin/init-volumes.sh",
-
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
@@ -15,18 +13,23 @@
       "username": "vscode"
     },
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/chromium:1": {}
   },
-
-  "forwardPorts": [3000, 5432],
+  "forwardPorts": [
+    3000,
+    5432
+  ],
   "portsAttributes": {
-    "3000": { "label": "App" },
-    "5432": { "label": "Postgres" }
+    "3000": {
+      "label": "App"
+    },
+    "5432": {
+      "label": "Postgres"
+    }
   },
-
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "updateContentCommand": "echo 'override in your project: pnpm install --frozen-lockfile / uv sync'",
-
   "customizations": {
     "vscode": {
       "extensions": [

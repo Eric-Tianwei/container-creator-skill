@@ -56,8 +56,8 @@ if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
 fi
 
-# 5. Claude Code + Agent SDK
-npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk
+# 5. Claude Code + Agent SDK + agent-browser CLI
+npm i -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk agent-browser
 npx -y skills add vercel-labs/agent-browser@agent-browser -g -y || true
 npx -y skills add anthropics/skills@skill-creator -g -y || true
 
